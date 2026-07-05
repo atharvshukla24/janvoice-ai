@@ -115,6 +115,7 @@ public class GeminiServiceImpl implements GeminiService {
         }
     }
 
+
     /**
      * Synthesizes structural complaints list into a high-level briefing.
      */
@@ -228,3 +229,4 @@ public class GeminiServiceImpl implements GeminiService {
                 .path("text").asText().trim();
     }
 }
+

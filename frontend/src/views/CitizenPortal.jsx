@@ -1,3 +1,4 @@
+import ComplaintMap from "../components/ComplaintMap";
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { complaintService } from '../services/api';
@@ -381,18 +382,10 @@ export default function CitizenPortal() {
                                     <div>
                                         <h3 className="text-sm font-black text-slate-905 border-b border-slate-100 pb-3 mb-3">Nearby Issues Map</h3>
                                         {/* Simulated vector map graphic */}
-                                        <div className="h-28 border border-slate-100 bg-[#eef3f6] rounded-xl relative overflow-hidden flex items-center justify-center">
-                                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#0F9D58_2px,transparent_2px)] [background-size:12px_12px]"></div>
-                                            {/* Map Pins */}
-                                            <MapPin className="w-5 h-5 text-red-500 fill-red-500 absolute top-5 left-10 animate-bounce" />
-                                            <MapPin className="w-5 h-5 text-[#0F9D58] fill-emerald-500 absolute bottom-6 right-16 scale-95" />
-                                            <MapPin className="w-5 h-5 text-orange-500 fill-orange-500 absolute top-12 right-28" />
-
-                                            <span className="text-[10px] bg-white/90 backdrop-blur-xs font-bold px-2 py-0.5 rounded-full border border-slate-200 text-slate-600 block shadow-2xs">
-                                                Sector Alpha-Epsilon Region
-                                            </span>
-                                        </div>
-                                    </div>
+                                        <div className="h-72 rounded-xl overflow-hidden">
+                                      <ComplaintMap />
+                                       </div>
+                                       </div>
 
                                     <button className="w-full mt-3 py-2 bg-slate-50 hover:bg-slate-100 border border-[#E5E7EB] rounded-xl text-xs text-slate-600 font-bold transition-all text-center">
                                         View on Map
