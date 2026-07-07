@@ -17,6 +17,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -46,36 +47,22 @@ public class GeminiServiceImpl implements GeminiService {
     @Override
     public GeminiAnalysisResult analyzeComplaint(String rawText) {
         String prompt = "You are a professional civic grievance analyzer. " +
-                "Analyze the following citizen complaint and return a strictly formatted JSON response. " +
+                "Analyze the following citizen complaint and return JSON only. " +
                 "Rules:\n" +
-                "1. If the input language is not English, detect it and translate 'translatedText' to English.\n" +
-                "2. Classify 'category' strictly, one of: Roads, Water, Electricity, Healthcare, Education, Sanitation, Crime, Public Transport, Environment.\n"
-                +
-                "3. Set 'urgency' matching one of: LOW, MEDIUM, HIGH, CRITICAL. Factor safety and hazards.\n" +
-                "4. Estimate your classification 'confidence' (0.0 to 1.0).\n\n" +
-                "JSON Schema output:\n" +
-                "{\n" +
-                "  \"language\": \"detect language ISO-639-1 code\",\n" +
-                "  \"translatedText\": \"translated description in English\",\n" +
-                "  \"category\": \"Strict category name\",\n" +
-                "  \"urgency\": \"Strict urgency level\",\n" +
-                "  \"confidence\": 0.95\n" +
-                "}\n\n" +
+                "1. Return valid JSON with keys: translatedText, detectedLanguage, category, urgency, summary, suggestedDepartment, priorityReason, isEmergency.\n" +
+                "2. Category must be one of: ROAD, WATER, ELECTRICITY, SANITATION, HEALTH, SAFETY, TRANSPORT, EDUCATION, EMERGENCY, OTHER.\n" +
+                "3. Urgency must be one of: LOW, MEDIUM, HIGH, CRITICAL. Mark CRITICAL for fire, accident, electric danger, medical emergency, violence, public safety risk, or urgent danger.\n" +
+                "4. If many people are affected, mark HIGH or CRITICAL.\n" +
+                "5. Return JSON only with no markdown.\n" +
                 "Complaint Text: \"" + rawText.replace("\"", "\\\"") + "\"";
 
         try {
             String rawJson = queryGemini(prompt);
-            return objectMapper.readValue(rawJson, GeminiAnalysisResult.class);
+            GeminiAnalysisResult result = objectMapper.readValue(rawJson, GeminiAnalysisResult.class);
+            return normalizeAnalysisResult(result, rawText);
         } catch (Exception e) {
             System.err.println("Gemini analysis error: " + e.getMessage());
-            // Fallback for offline or invalid API keys key during hackathon demos
-            return GeminiAnalysisResult.builder()
-                    .language("en")
-                    .translatedText(rawText)
-                    .category("Roads")
-                    .urgency("MEDIUM")
-                    .confidence(0.70)
-                    .build();
+            return buildFallbackAnalysis(rawText);
         }
     }
 
@@ -148,6 +135,181 @@ public class GeminiServiceImpl implements GeminiService {
      * Execute Gemini API REST request. Formats request structure and returns the
      * inner text.
      */
+    private GeminiAnalysisResult normalizeAnalysisResult(GeminiAnalysisResult result, String rawText) {
+        if (result == null) {
+            return buildFallbackAnalysis(rawText);
+        }
+        String normalizedCategory = normalizeCategory(result.getCategory());
+        String normalizedUrgency = normalizeUrgency(result.getUrgency());
+        String department = inferDepartment(normalizedCategory, normalizedUrgency, rawText);
+        String priorityReason = result.getPriorityReason();
+        if (priorityReason == null || priorityReason.isBlank()) {
+            priorityReason = "AI detected a " + normalizedUrgency.toLowerCase(Locale.ROOT) + " issue in the " + normalizedCategory.toLowerCase(Locale.ROOT) + " domain.";
+        }
+        boolean isEmergency = Boolean.TRUE.equals(result.getIsEmergency()) || "CRITICAL".equals(normalizedUrgency) || containsEmergencySignals(rawText);
+        return GeminiAnalysisResult.builder()
+                .language(result.getLanguage() != null ? result.getLanguage() : "en")
+                .translatedText(result.getTranslatedText() != null ? result.getTranslatedText() : rawText)
+                .category(normalizedCategory)
+                .urgency(normalizedUrgency)
+                .confidence(result.getConfidence() != null ? result.getConfidence() : 0.8)
+                .summary(result.getSummary() != null ? result.getSummary() : result.getTranslatedText())
+                .suggestedDepartment(department)
+                .priorityReason(priorityReason)
+                .isEmergency(isEmergency)
+                .build();
+    }
+
+    private GeminiAnalysisResult buildFallbackAnalysis(String rawText) {
+        String lowered = rawText.toLowerCase(Locale.ROOT);
+        boolean emergency = containsEmergencySignals(lowered);
+        String category = inferCategory(lowered);
+        String urgency = emergency ? "CRITICAL" : inferFallbackUrgency(lowered);
+        return GeminiAnalysisResult.builder()
+                .language("en")
+                .translatedText(rawText)
+                .category(category)
+                .urgency(urgency)
+                .confidence(0.7)
+                .summary("Rule-based civic analysis applied because AI service was unavailable.")
+                .suggestedDepartment(inferDepartment(category, urgency, lowered))
+                .priorityReason(emergency ? "Immediate public safety or danger signal detected." : "Community impact and urgency were inferred from the complaint text.")
+                .isEmergency(emergency)
+                .build();
+    }
+
+    private String inferCategory(String text) {
+        if (text.contains("fire") || text.contains("accident") || text.contains("violence") || text.contains("danger") || text.contains("electric")) {
+            return "EMERGENCY";
+        }
+        if (text.contains("water") || text.contains("supply") || text.contains("leak")) {
+            return "WATER";
+        }
+        if (text.contains("road") || text.contains("pothole") || text.contains("street")) {
+            return "ROAD";
+        }
+        if (text.contains("sewer") || text.contains("garbage") || text.contains("sanitation") || text.contains("drain")) {
+            return "SANITATION";
+        }
+        if (text.contains("hospital") || text.contains("doctor") || text.contains("medical") || text.contains("health")) {
+            return "HEALTH";
+        }
+        if (text.contains("school") || text.contains("education") || text.contains("teacher")) {
+            return "EDUCATION";
+        }
+        if (text.contains("bus") || text.contains("transport") || text.contains("traffic")) {
+            return "TRANSPORT";
+        }
+        if (text.contains("safety") || text.contains("unsafe") || text.contains("hazard")) {
+            return "SAFETY";
+        }
+        return "OTHER";
+    }
+
+    private String normalizeCategory(String category) {
+        if (category == null) {
+            return "OTHER";
+        }
+        String normalized = category.trim().toUpperCase(Locale.ROOT);
+        switch (normalized) {
+            case "ROADS":
+            case "ROAD":
+                return "ROAD";
+            case "WATER":
+            case "WATER SUPPLY":
+                return "WATER";
+            case "ELECTRICITY":
+            case "POWER":
+                return "ELECTRICITY";
+            case "SANITATION":
+            case "SEWAGE":
+            case "GARBAGE":
+                return "SANITATION";
+            case "HEALTHCARE":
+            case "HEALTH":
+                return "HEALTH";
+            case "SAFETY":
+            case "CRIME":
+            case "PUBLIC SAFETY":
+                return "SAFETY";
+            case "PUBLIC TRANSPORT":
+            case "TRANSPORT":
+                return "TRANSPORT";
+            case "EDUCATION":
+                return "EDUCATION";
+            case "EMERGENCY":
+            case "FIRE":
+                return "EMERGENCY";
+            default:
+                return "OTHER";
+        }
+    }
+
+    private String normalizeUrgency(String urgency) {
+        if (urgency == null) {
+            return "MEDIUM";
+        }
+        switch (urgency.trim().toUpperCase(Locale.ROOT)) {
+            case "CRITICAL":
+                return "CRITICAL";
+            case "HIGH":
+                return "HIGH";
+            case "MEDIUM":
+                return "MEDIUM";
+            case "LOW":
+                return "LOW";
+            default:
+                return "MEDIUM";
+        }
+    }
+
+    private String inferFallbackUrgency(String text) {
+        if (text.contains("fire") || text.contains("accident") || text.contains("danger") || text.contains("violence") || text.contains("medical")) {
+            return "CRITICAL";
+        }
+        if (text.contains("water") || text.contains("road") || text.contains("sewer") || text.contains("electric")) {
+            return "HIGH";
+        }
+        return "MEDIUM";
+    }
+
+    private String inferDepartment(String category, String urgency, String text) {
+        if ("EMERGENCY".equals(category) || "CRITICAL".equals(urgency)) {
+            return "Emergency Response";
+        }
+        if ("ELECTRICITY".equals(category)) {
+            return "Electricity Department";
+        }
+        if ("WATER".equals(category)) {
+            return "Water Department";
+        }
+        if ("SANITATION".equals(category)) {
+            return "Municipal Sanitation";
+        }
+        if ("ROAD".equals(category)) {
+            return "Public Works";
+        }
+        if ("HEALTH".equals(category)) {
+            return "Health Department";
+        }
+        if ("TRANSPORT".equals(category)) {
+            return "Transport Department";
+        }
+        if ("EDUCATION".equals(category)) {
+            return "Education Department";
+        }
+        if (text.contains("school") || text.contains("hospital")) {
+            return "Municipal Coordination";
+        }
+        return "Municipal Coordination";
+    }
+
+    private boolean containsEmergencySignals(String text) {
+        String lowered = text.toLowerCase(Locale.ROOT);
+        return lowered.contains("fire") || lowered.contains("accident") || lowered.contains("violence") || lowered.contains("medical emergency")
+                || lowered.contains("electric danger") || lowered.contains("danger") || lowered.contains("injury") || lowered.contains("collapse");
+    }
+
     private String queryGeminiRawText(String prompt) throws Exception {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalStateException(

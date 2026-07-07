@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +68,13 @@ public class ComplaintServiceImpl implements ComplaintService {
                 .urgency(Urgency.valueOf(analysis.getUrgency()))
                 .status(ComplaintStatus.PENDING)
                 .wardArea(wardArea)
-                .upvotes(1) // Default to 1 upvote since the creator implicitly supports it
+                .upvotes(1)
+                .priorityScore(calculatePriorityScore(analysis, 1, 0, false))
+                .affectedPeople(1)
+                .duplicateCount(0)
+                .suggestedDepartment(analysis.getSuggestedDepartment())
+                .priorityReason(analysis.getPriorityReason())
+                .isEmergency(Boolean.TRUE.equals(analysis.getIsEmergency()))
                 .build();
 
         // Step 2: Check for potential duplicates in the same Ward Area and Category
@@ -89,6 +97,12 @@ public class ComplaintServiceImpl implements ComplaintService {
 
                     // Increment upvotes on the parent master ticket to raise its priority
                     parent.setUpvotes(parent.getUpvotes() + 1);
+                    parent.setDuplicateCount(parent.getDuplicateCount() + 1);
+                    parent.setPriorityScore(calculatePriorityScore(
+                            analysis,
+                            parent.getUpvotes(),
+                            parent.getDuplicateCount(),
+                            Boolean.TRUE.equals(parent.getIsEmergency())));
                     complaintRepository.save(parent);
 
                     // Insert voter junction record for the creator on the parent so they cannot
@@ -136,14 +150,21 @@ public class ComplaintServiceImpl implements ComplaintService {
         // Create vote record
         upvoteRepository.save(Upvote.builder().user(user).complaint(targetComplaint).build());
 
-        // Increment target upvote count
         targetComplaint.setUpvotes(targetComplaint.getUpvotes() + 1);
+        targetComplaint.setAffectedPeople(Math.max(targetComplaint.getAffectedPeople(), targetComplaint.getUpvotes()));
+        targetComplaint.setPriorityScore(calculatePriorityScore(
+                null,
+                targetComplaint.getUpvotes(),
+                targetComplaint.getDuplicateCount(),
+                Boolean.TRUE.equals(targetComplaint.getIsEmergency())));
         return complaintRepository.save(targetComplaint);
     }
 
     @Override
     public List<Complaint> getComplaintsInWardArea(String wardArea) {
-        return complaintRepository.findByWardAreaAndParentComplaintIsNullOrderByUpvotesDesc(wardArea);
+        List<Complaint> complaints = complaintRepository.findByWardAreaAndParentComplaintIsNullOrderByPriorityScoreDesc(wardArea);
+        complaints.sort(Comparator.comparing(Complaint::getPriorityScore, Comparator.nullsLast(Integer::compareTo)).reversed());
+        return complaints;
     }
 
     @Override
@@ -199,7 +220,8 @@ public class ComplaintServiceImpl implements ComplaintService {
 
         // 3. AI Briefing Handling
         List<Complaint> activeComplaints = complaintRepository
-                .findByWardAreaAndParentComplaintIsNullOrderByUpvotesDesc(wardArea);
+                .findByWardAreaAndParentComplaintIsNullOrderByPriorityScoreDesc(wardArea);
+        activeComplaints.sort(Comparator.comparing(Complaint::getPriorityScore, Comparator.nullsLast(Integer::compareTo)).reversed());
 
         Optional<AreaBriefing> briefingOpt = areaBriefingRepository.findById(wardArea);
         String briefingText;
@@ -219,5 +241,37 @@ public class ComplaintServiceImpl implements ComplaintService {
 
         stats.put("aiSummary", briefingText);
         return stats;
+    }
+
+    private int calculatePriorityScore(GeminiAnalysisResult analysis, int upvotes, int duplicateCount, boolean isEmergency) {
+        int score = 0;
+        if (analysis != null) {
+            switch (analysis.getUrgency()) {
+                case "CRITICAL":
+                    score += 50;
+                    break;
+                case "HIGH":
+                    score += 35;
+                    break;
+                case "MEDIUM":
+                    score += 20;
+                    break;
+                default:
+                    score += 10;
+                    break;
+            }
+            if (Boolean.TRUE.equals(analysis.getIsEmergency())) {
+                score += 30;
+            }
+            if (analysis.getCategory() != null && (analysis.getCategory().contains("SAFETY") || analysis.getCategory().contains("EMERGENCY"))) {
+                score += 20;
+            }
+        }
+        score += upvotes * 5;
+        score += duplicateCount * 8;
+        if (isEmergency) {
+            score += 30;
+        }
+        return score;
     }
 }

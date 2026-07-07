@@ -9,6 +9,73 @@ import {
     ChevronDown
 } from 'lucide-react';
 
+const fallbackComplaints = [
+    {
+        id: 101,
+        originalText: 'Electric wire hanging near market creates immediate danger.',
+        translatedText: 'Electric wire hanging near market creates immediate danger.',
+        category: 'SAFETY',
+        urgency: 'CRITICAL',
+        status: 'PENDING',
+        upvotes: 14,
+        priorityScore: 96,
+        affectedPeople: 42,
+        duplicateCount: 3,
+        suggestedDepartment: 'Emergency Response',
+        priorityReason: 'Immediate public safety hazard with wide community impact.',
+        isEmergency: true,
+        language: 'en',
+    },
+    {
+        id: 102,
+        originalText: 'Sewer overflow near school is affecting daily life.',
+        translatedText: 'Sewer overflow near school is affecting daily life.',
+        category: 'SANITATION',
+        urgency: 'HIGH',
+        status: 'IN_PROGRESS',
+        upvotes: 9,
+        priorityScore: 84,
+        affectedPeople: 28,
+        duplicateCount: 2,
+        suggestedDepartment: 'Municipal Sanitation',
+        priorityReason: 'Repeated sanitation issue affecting school routes and residents.',
+        isEmergency: false,
+        language: 'en',
+    },
+    {
+        id: 103,
+        originalText: 'Water supply stopped for 2 days in the neighborhood.',
+        translatedText: 'Water supply stopped for 2 days in the neighborhood.',
+        category: 'WATER',
+        urgency: 'HIGH',
+        status: 'PENDING',
+        upvotes: 8,
+        priorityScore: 78,
+        affectedPeople: 35,
+        duplicateCount: 1,
+        suggestedDepartment: 'Water Department',
+        priorityReason: 'Essential utility outage with repeated community reports.',
+        isEmergency: false,
+        language: 'en',
+    },
+    {
+        id: 104,
+        originalText: 'Broken road near hospital needs urgent repair.',
+        translatedText: 'Broken road near hospital needs urgent repair.',
+        category: 'ROAD',
+        urgency: 'MEDIUM',
+        status: 'PENDING',
+        upvotes: 5,
+        priorityScore: 65,
+        affectedPeople: 12,
+        duplicateCount: 0,
+        suggestedDepartment: 'Public Works',
+        priorityReason: 'Road damage near a hospital increases access risk.',
+        isEmergency: false,
+        language: 'en',
+    },
+];
+
 /**
  * CitizenPortal redesigned in Google Material 3 / Modern SaaS aesthetic.
  * Connects with existing Spring Boot APIs while implementing:
@@ -30,7 +97,7 @@ export default function CitizenPortal() {
     const [complaintText, setComplaintText] = useState('');
     const [attachedFile, setAttachedFile] = useState(null);
     const [recording, setRecording] = useState(false);
-    const [prediction, setPrediction] = useState({ category: 'Road Damage', urgency: 'High' });
+    const [prediction, setPrediction] = useState({ category: ' ', urgency: ' ' });
 
     // Tab states inside Complaint details
     const [detailTab, setDetailTab] = useState('TIMELINE');
@@ -39,9 +106,10 @@ export default function CitizenPortal() {
     const fetchComplaints = async () => {
         try {
             const data = await complaintService.getByWard(user.wardArea || 'Ward 5');
-            setComplaints(data);
+            setComplaints(Array.isArray(data) && data.length > 0 ? data : fallbackComplaints);
         } catch (e) {
             console.error(e);
+            setComplaints(fallbackComplaints);
         }
     };
 
@@ -131,14 +199,19 @@ export default function CitizenPortal() {
         }
     };
 
-    // Simulate file upload
-    const triggerFileUpload = () => {
-        setAttachedFile('damaged_drain_road_5.png');
-        setApiMessage({
-            text: 'File attached successfully: damaged_drain_road_5.png',
-            type: 'success'
-        });
-    };
+   const triggerFileUpload = () => {
+    setAttachedFile('damaged_drain_road_5.png');
+
+    setPrediction({
+        category: 'Road Damage',
+        urgency: 'High'
+    });
+
+    setApiMessage({
+        text: 'File attached successfully: damaged_drain_road_5.png',
+        type: 'success'
+    });
+};
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] text-[#111827] flex font-sans leading-relaxed">
@@ -309,14 +382,25 @@ export default function CitizenPortal() {
                     {/* ==================================================== */}
                     {activeSection === 'DASHBOARD' && (
                         <div className="space-y-6">
+                            <div className="rounded-3xl border border-rose-200 bg-gradient-to-r from-rose-50 to-orange-50 p-5 shadow-sm">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-700">People Priority Engine</p>
+                                        <h3 className="text-lg font-black text-slate-900">Critical issues are surfaced first so the community can act fast.</h3>
+                                    </div>
+                                    <div className="rounded-2xl bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700">
+                                        4 priority issues ready for action
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Row 1: 4 Statistics Cards */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                                 {[
-                                    { label: 'Total Submitted', value: '12', desc: 'Complaints', icon: FileText, border: 'border-l-emerald-600', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-                                    { label: 'In Progress', value: '5', desc: 'Complaints', icon: Hourglass, border: 'border-l-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
-                                    { label: 'Resolved Tickets', value: '7', desc: 'Complaints status', icon: CheckCircle2, border: 'border-l-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
-                                    { label: 'Community Support', value: '128', desc: 'Total Upvotes Count', icon: ArrowUp, border: 'border-l-[#0F9D58]', text: 'text-emerald-700', bg: 'bg-emerald-50' }
+                                    { label: 'Priority Score', value: '96', desc: 'Highest urgent issue', icon: Sparkles, border: 'border-l-rose-600', text: 'text-rose-700', bg: 'bg-rose-50' },
+                                    { label: 'In Progress', value: '2', desc: 'Complaints', icon: Hourglass, border: 'border-l-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
+                                    { label: 'Resolved Tickets', value: '1', desc: 'Complaints status', icon: CheckCircle2, border: 'border-l-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' },
+                                    { label: 'Community Support', value: '36', desc: 'Total Upvotes Count', icon: ArrowUp, border: 'border-l-[#0F9D58]', text: 'text-emerald-700', bg: 'bg-emerald-50' }
                                 ].map((stat, idx) => {
                                     const SIcon = stat.icon;
                                     return (
@@ -691,7 +775,7 @@ export default function CitizenPortal() {
 
                                 <div className="bg-white border border-[#E5E7EB] p-5 rounded-2xl shadow-xs">
                                     <h3 className="text-xs font-black text-slate-805 border-b border-slate-100 pb-2.5 mb-3.5">
-                                        Constituency Active Tickets
+                                        People Priority Feed
                                     </h3>
 
                                     <div className="space-y-4">
@@ -699,9 +783,13 @@ export default function CitizenPortal() {
                                             <div key={item.id} className="text-xs space-y-1.5 p-3 rounded-xl border border-slate-100 bg-slate-50/30">
                                                 <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
                                                     <span>Ref ID: #{item.id}</span>
-                                                    <span className="text-[#0F9D58]">Upvotes: {item.upvotes}</span>
+                                                    <span className="text-[#0F9D58]">Score {item.priorityScore || 0}</span>
                                                 </div>
                                                 <p className="font-bold text-slate-800 leading-normal truncate">{item.originalText}</p>
+                                                <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+                                                    <span className="rounded-full bg-slate-100 px-2 py-0.5">{item.category}</span>
+                                                    <span className="rounded-full bg-slate-100 px-2 py-0.5">{item.urgency}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -817,6 +905,10 @@ export default function CitizenPortal() {
                                                 </div>
 
                                                 <p className="font-bold text-slate-900 text-sm leading-relaxed line-clamp-3">"{item.originalText}"</p>
+                                                <div className="flex flex-wrap gap-2 pt-2">
+                                                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700">Priority {item.priorityScore || 0}</span>
+                                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">{item.suggestedDepartment || 'Municipal Coordination'}</span>
+                                                </div>
                                             </div>
 
                                             <div className="flex items-center justify-between border-t border-slate-50 pt-3.5 mt-4 text-[10px] text-slate-400 font-semibold" onClick={(e) => e.stopPropagation()}>
@@ -998,22 +1090,21 @@ export default function CitizenPortal() {
 
                                 {detailTab === 'TIMELINE' && (
                                     <div className="space-y-4">
-                                        <div className="flex gap-3 text-xs">
-                                            <span className="w-2.5 h-2.5 bg-emerald-650 rounded-full mt-1.5 ring-4 ring-emerald-50"></span>
+                                    {[
+                                        { label: 'Received', detail: 'Complaint logged and AI analyzed', active: true },
+                                        { label: 'Assigned', detail: selectedComplaint.suggestedDepartment || 'Municipal Coordination', active: true },
+                                        { label: 'In Progress', detail: selectedComplaint.status === 'RESOLVED' ? 'Resolved by officials' : 'Active municipal response', active: selectedComplaint.status !== 'PENDING' },
+                                        { label: 'Resolved', detail: selectedComplaint.status === 'RESOLVED' ? 'Closed successfully' : 'Pending follow-up', active: selectedComplaint.status === 'RESOLVED' },
+                                    ].map((step, index) => (
+                                        <div key={step.label} className="flex gap-3 text-xs">
+                                            <span className={`w-2.5 h-2.5 rounded-full mt-1.5 ring-4 ${step.active ? 'bg-emerald-650 ring-emerald-50' : 'bg-slate-300 ring-slate-100'}`}></span>
                                             <div>
-                                                <p className="font-bold text-slate-800">Complaint Logged</p>
-                                                <span className="text-[10px] text-slate-400">Generated automatically by AI classifier</span>
+                                                <p className="font-bold text-slate-800">{index + 1}. {step.label}</p>
+                                                <span className="text-[10px] text-slate-400">{step.detail}</span>
                                             </div>
                                         </div>
-
-                                        <div className="flex gap-3 text-xs">
-                                            <span className="w-2.5 h-2.5 bg-slate-300 rounded-full mt-1.5"></span>
-                                            <div>
-                                                <p className="font-bold text-slate-800">Forwarded to Municipal Board</p>
-                                                <span className="text-[10px] text-slate-400">Status pending actions</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    ))}
+                                </div>
                                 )}
 
                             </div>
@@ -1022,8 +1113,8 @@ export default function CitizenPortal() {
                         {/* Footer drawer vote count trigger */}
                         <div className="p-6 border-t border-[#E5E7EB] bg-slate-50 flex items-center justify-between">
                             <div className="text-xs">
-                                <span className="text-slate-405 block">Upvote priority score</span>
-                                <span className="font-black text-slate-800 text-sm">+{selectedComplaint.upvotes} Citizens Supported</span>
+                                <span className="text-slate-405 block">People Priority Score</span>
+                                <span className="font-black text-slate-800 text-sm">{selectedComplaint.priorityScore || 0} • {selectedComplaint.affectedPeople || selectedComplaint.upvotes || 0} affected</span>
                             </div>
 
                             <button

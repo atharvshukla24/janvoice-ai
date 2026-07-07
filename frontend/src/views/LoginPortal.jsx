@@ -23,20 +23,37 @@ export default function LoginPortal() {
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Autofills for live demo judging
-    const handleAutofill = (type) => {
+    // Demo-mode login for hackathon demos when backend auth is unavailable
+    const handleDemoLogin = (type) => {
         setError('');
         setSuccess('');
         setIsRegister(false);
+
         if (type === 'CITIZEN') {
             setRole('CITIZEN');
-            setUsername('citizen1');
-            setPassword('password');
+            setUsername('citizen-demo');
+            setPassword('');
             setWardArea('Ward 5');
+            login({
+                id: 1001,
+                username: 'citizen-demo',
+                role: 'CITIZEN',
+                wardArea: 'Ward 5',
+                demoMode: true,
+            });
+            setSuccess('Demo Mode enabled. You are signed in as a citizen.');
         } else {
             setRole('MP');
-            setUsername('mp1');
-            setPassword('password');
+            setUsername('mp-demo');
+            setPassword('');
+            login({
+                id: 2001,
+                username: 'mp-demo',
+                role: 'MP',
+                wardArea: 'Ward 5',
+                demoMode: true,
+            });
+            setSuccess('Demo Mode enabled. You are signed in as an MP admin.');
         }
     };
 
@@ -390,24 +407,29 @@ export default function LoginPortal() {
 
             {/* 3. Dark Green Quick Autofills Footer */}
             <footer className="w-full bg-[#0c382e] py-4.5 px-6 border-t border-emerald-950 text-center relative z-20">
-                <p className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mb-2.5 select-none">
-                    Hackathon Quick Demo
-                </p>
+                <div className="flex items-center justify-center gap-2 mb-2.5">
+                    <p className="text-[10px] text-emerald-400 font-black uppercase tracking-wider select-none">
+                        Hackathon Quick Demo
+                    </p>
+                    <span className="rounded-full border border-emerald-400/40 bg-emerald-900/40 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-200">
+                        Demo Mode
+                    </span>
+                </div>
                 <div className="flex flex-wrap justify-center gap-3">
                     <button
-                        onClick={() => handleAutofill('CITIZEN')}
+                        onClick={() => handleDemoLogin('CITIZEN')}
                         className="px-4 py-2 border border-emerald-400/40 hover:bg-emerald-900/50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all outline-none cursor-pointer"
                     >
                         <User className="w-4 h-4 text-emerald-350" />
-                        Autofill Citizen (Ward 5)
+                        Continue as Citizen
                     </button>
 
                     <button
-                        onClick={() => handleAutofill('MP')}
+                        onClick={() => handleDemoLogin('MP')}
                         className="px-4 py-2 border border-emerald-400/40 hover:bg-emerald-900/50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all outline-none cursor-pointer"
                     >
                         <BarChart3 className="w-4 h-4 text-emerald-350" />
-                        Autofill MP Dashboard
+                        Continue as MP/Admin
                     </button>
                 </div>
             </footer>

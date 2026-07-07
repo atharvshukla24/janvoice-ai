@@ -3,10 +3,6 @@ package com.janvoice.ai.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-/**
- * JPA Entity mapping the 'complaints' database table.
- * Standard Java implementation (No Lombok annotation wrappers).
- */
 @Entity
 @Table(name = "complaints")
 public class Complaint {
@@ -45,6 +41,24 @@ public class Complaint {
     @Column(nullable = false)
     private Integer upvotes;
 
+    @Column(name = "priority_score")
+    private Integer priorityScore;
+
+    @Column(name = "affected_people")
+    private Integer affectedPeople;
+
+    @Column(name = "duplicate_count")
+    private Integer duplicateCount;
+
+    @Column(name = "suggested_department", length = 100)
+    private String suggestedDepartment;
+
+    @Column(name = "priority_reason", columnDefinition = "TEXT")
+    private String priorityReason;
+
+    @Column(name = "is_emergency")
+    private Boolean isEmergency;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_complaint_id")
     private Complaint parentComplaint;
@@ -61,16 +75,28 @@ public class Complaint {
         if (this.upvotes == null) {
             this.upvotes = 0;
         }
+        if (this.priorityScore == null) {
+            this.priorityScore = 0;
+        }
+        if (this.affectedPeople == null) {
+            this.affectedPeople = Math.max(1, this.upvotes);
+        }
+        if (this.duplicateCount == null) {
+            this.duplicateCount = 0;
+        }
+        if (this.isEmergency == null) {
+            this.isEmergency = false;
+        }
     }
 
-    // Default Constructor
     public Complaint() {
     }
 
-    // Full constructor
     public Complaint(Long id, User citizen, String originalText, String translatedText, String language,
             String category, Urgency urgency, ComplaintStatus status, String wardArea,
-            Integer upvotes, Complaint parentComplaint, LocalDateTime createdAt) {
+            Integer upvotes, Integer priorityScore, Integer affectedPeople, Integer duplicateCount,
+            String suggestedDepartment, String priorityReason, Boolean isEmergency,
+            Complaint parentComplaint, LocalDateTime createdAt) {
         this.id = id;
         this.citizen = citizen;
         this.originalText = originalText;
@@ -81,11 +107,16 @@ public class Complaint {
         this.status = status;
         this.wardArea = wardArea;
         this.upvotes = upvotes;
+        this.priorityScore = priorityScore;
+        this.affectedPeople = affectedPeople;
+        this.duplicateCount = duplicateCount;
+        this.suggestedDepartment = suggestedDepartment;
+        this.priorityReason = priorityReason;
+        this.isEmergency = isEmergency;
         this.parentComplaint = parentComplaint;
         this.createdAt = createdAt;
     }
 
-    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -166,6 +197,54 @@ public class Complaint {
         this.upvotes = upvotes;
     }
 
+    public Integer getPriorityScore() {
+        return priorityScore;
+    }
+
+    public void setPriorityScore(Integer priorityScore) {
+        this.priorityScore = priorityScore;
+    }
+
+    public Integer getAffectedPeople() {
+        return affectedPeople;
+    }
+
+    public void setAffectedPeople(Integer affectedPeople) {
+        this.affectedPeople = affectedPeople;
+    }
+
+    public Integer getDuplicateCount() {
+        return duplicateCount;
+    }
+
+    public void setDuplicateCount(Integer duplicateCount) {
+        this.duplicateCount = duplicateCount;
+    }
+
+    public String getSuggestedDepartment() {
+        return suggestedDepartment;
+    }
+
+    public void setSuggestedDepartment(String suggestedDepartment) {
+        this.suggestedDepartment = suggestedDepartment;
+    }
+
+    public String getPriorityReason() {
+        return priorityReason;
+    }
+
+    public void setPriorityReason(String priorityReason) {
+        this.priorityReason = priorityReason;
+    }
+
+    public Boolean getIsEmergency() {
+        return isEmergency;
+    }
+
+    public void setIsEmergency(Boolean emergency) {
+        isEmergency = emergency;
+    }
+
     public Complaint getParentComplaint() {
         return parentComplaint;
     }
@@ -182,7 +261,6 @@ public class Complaint {
         this.createdAt = createdAt;
     }
 
-    // Builder Pattern
     public static ComplaintBuilder builder() {
         return new ComplaintBuilder();
     }
@@ -198,6 +276,12 @@ public class Complaint {
         private ComplaintStatus status;
         private String wardArea;
         private Integer upvotes;
+        private Integer priorityScore;
+        private Integer affectedPeople;
+        private Integer duplicateCount;
+        private String suggestedDepartment;
+        private String priorityReason;
+        private Boolean isEmergency;
         private Complaint parentComplaint;
         private LocalDateTime createdAt;
 
@@ -251,6 +335,36 @@ public class Complaint {
             return this;
         }
 
+        public ComplaintBuilder priorityScore(Integer priorityScore) {
+            this.priorityScore = priorityScore;
+            return this;
+        }
+
+        public ComplaintBuilder affectedPeople(Integer affectedPeople) {
+            this.affectedPeople = affectedPeople;
+            return this;
+        }
+
+        public ComplaintBuilder duplicateCount(Integer duplicateCount) {
+            this.duplicateCount = duplicateCount;
+            return this;
+        }
+
+        public ComplaintBuilder suggestedDepartment(String suggestedDepartment) {
+            this.suggestedDepartment = suggestedDepartment;
+            return this;
+        }
+
+        public ComplaintBuilder priorityReason(String priorityReason) {
+            this.priorityReason = priorityReason;
+            return this;
+        }
+
+        public ComplaintBuilder isEmergency(Boolean emergency) {
+            this.isEmergency = emergency;
+            return this;
+        }
+
         public ComplaintBuilder parentComplaint(Complaint parentComplaint) {
             this.parentComplaint = parentComplaint;
             return this;
@@ -263,7 +377,8 @@ public class Complaint {
 
         public Complaint build() {
             return new Complaint(id, citizen, originalText, translatedText, language, category,
-                    urgency, status, wardArea, upvotes, parentComplaint, createdAt);
+                    urgency, status, wardArea, upvotes, priorityScore, affectedPeople, duplicateCount,
+                    suggestedDepartment, priorityReason, isEmergency, parentComplaint, createdAt);
         }
     }
 }

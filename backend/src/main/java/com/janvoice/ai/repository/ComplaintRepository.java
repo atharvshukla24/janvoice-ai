@@ -18,10 +18,10 @@ import java.util.List;
 public interface ComplaintRepository extends JpaRepository<Complaint, Long> {
 
     // Fetch all parent complaints (master issues) in an area
-    List<Complaint> findByWardAreaAndParentComplaintIsNullOrderByUpvotesDesc(String wardArea);
+    List<Complaint> findByWardAreaAndParentComplaintIsNullOrderByPriorityScoreDesc(String wardArea);
 
     // Fetch all parent complaints sorted globally or by area for sorting queues
-    List<Complaint> findByParentComplaintIsNullOrderByUpvotesDesc();
+    List<Complaint> findByParentComplaintIsNullOrderByPriorityScoreDesc();
 
     // Check status counts in an area for dashboard
     long countByWardAreaAndStatus(String wardArea, ComplaintStatus status);

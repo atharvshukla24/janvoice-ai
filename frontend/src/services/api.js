@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// Connect to Spring Boot on port 8080
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const api = axios.create({
     baseURL: API_BASE,
